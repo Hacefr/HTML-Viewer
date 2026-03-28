@@ -1,14 +1,14 @@
 # HTML Viewer 🌐
 
-This is a simple static website hosted on GitHub Pages.
+A crappy remake of the plenty html editors out there
 
-## 🚀 Live Demo
-You can view the site live here: [https://hacefr.github.io](https://hacefr.github.io)
+## Find it here
+You can view the site live here: [https://hacefr.github.io](https://hacefr.github.io/HTML-Viewer/)
 
 ## 🛠️ Features
-- Clean HTML structure
-- Instant deployment via GitHub Actions
-- Mobile-friendly viewing
+- SmthSmth html maker and stuff
+- Obfuscate your code so its like half difficult for some1 to decode it
+- EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
 
 ## 📂 Project Structure
 - `index.html`: The main entry point of the website.
