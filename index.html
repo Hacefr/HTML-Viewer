@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application Launcher</title>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --card-bg: rgba(22, 27, 34, 0.7);
+            --card-border: #30363d;
+            --text-main: #c9d1d9;
+            --text-muted: #8b949e;
+            --accent-glow: rgba(88, 166, 255, 0.15);
+            --accent-border: #58a6ff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(45deg, #58a6ff, #bc8cff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .launcher-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+            backdrop-filter: blur(8px);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-border);
+            box-shadow: 0 8px 24px var(--accent-glow);
+        }
+
+        .version-badge {
+            background: rgba(88, 166, 255, 0.1);
+            color: var(--accent-border);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            border: 1px solid rgba(88, 166, 255, 0.2);
+        }
+
+        .card:nth-of-type(1) .version-badge {
+            background: rgba(139, 148, 158, 0.1);
+            color: #8b949e;
+            border-color: rgba(139, 148, 158, 0.2);
+        }
+
+      
+        .card:nth-of-type(3) .version-badge {
+            background: rgba(188, 140, 255, 0.1);
+            color: #bc8cff;
+            border-color: rgba(188, 140, 255, 0.2);
+        }
+
+        .card h2 {
+            font-size: 1.5rem;
+            margin-bottom: 0.75rem;
+            color: #f0f6fc;
+        }
+
+        .card p {
+            font-size: 0.95rem;
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        .launch-btn {
+            background-color: #21262d;
+            border: 1px solid var(--card-border);
+            color: var(--text-main);
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            font-weight: 500;
+            width: 100%;
+            transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+        }
+
+        .card:hover .launch-btn {
+            background-color: var(--accent-border);
+            color: #ffffff;
+            border-color: var(--accent-border);
+        }
+
+
+        .card:nth-of-type(3):hover .launch-btn {
+            background-color: #bc8cff;
+            border-color: #bc8cff;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Versions</h1>
+        <p>Select a deployment profile to launch the application</p>
+    </header>
+
+    <main class="launcher-grid">
+
+        <a href="old.html" class="card">
+            <div>
+                <span class="version-badge">Deprecated</span>
+                <h2>OLD legacy app</h2>
+                <p>The original stable release line. Retained for historical feature validation and older client architectures.</p>
+            </div>
+            <button class="launch-btn" tabIndex="-1">Launch App</button>
+        </a>
+
+        <a href="stable.html" class="card">
+            <div>
+                <span class="version-badge">Stable</span>
+                <h2>Current release</h2>
+                <p>The definitive production environment. Fully optimized workflow engine with comprehensive patches integrated.</p>
+            </div>
+            <button class="launch-btn" tabIndex="-1">Launch App</button>
+        </a>
+
+        <a href="experimental.html" class="card">
+            <div>
+                <span class="version-badge">Experimental</span>
+                <h2>Alpha version</h2>
+                <p>Bleeding-edge test sandbox. Contains active layout configurations and unvetted algorithmic updates.</p>
+            </div>
+            <button class="launch-btn" tabIndex="-1">Launch App</button>
+        </a>
+    </main>
+
+</body>
+</html>
