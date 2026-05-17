@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3-Workspace Modulated Engine</title>
+    <link id="dynamic-favicon" rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://w3.org' viewBox='0 0 100 100'><text y='0.9em' font-size='80' fill='%23007acc'>IDE</text></svg>">
+    
+    <style>
+        :root {
+            --bg-color: #1e1e1e;
+            --panel-bg: #252526;
+            --editor-bg: #1e1e1e;
+            --gutter-bg: #1c1c1c;
+            --text-color: #d4d4d4;
+            --gutter-text: #6e6e6e;
+            --border-color: #3c3c3c;
+            --accent-color: #007acc;
+            --danger-color: #a93226;
+            --success-color: #4caf50;
+            --header-html: #e34f26;
+            --header-css: #1572b6;
+            --header-js: #f7df1e;
+            --toast-bg: #2d2d30;
+        }
+        .light-theme {
+            --bg-color: #f3f3f3;
+            --panel-bg: #ffffff;
+            --editor-bg: #ffffff;
+            --gutter-bg: #eaeaea;
+            --text-color: #222222;
+            --gutter-text: #888888;
+            --border-color: #cccccc;
+            --accent-color: #005999;
+            --danger-color: #cd5c5c;
+            --success-color: #2e7d32;
+            --toast-bg: #e0e0e0;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body, html { width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-color); color: var(--text-color); }
+        
+        .app-container { display: flex; flex-direction: column; height: 100vh; }
+        header { display: flex; justify-content: space-between; align-items: center; background: var(--panel-bg); padding: 5px 15px; border-bottom: 1px solid var(--border-color); height: 45px; }
+        .toolbar-group { display: flex; gap: 8px; align-items: center; }
+        
+        .workspace-grid { 
+            flex: 1; 
+            display: grid; 
+            grid-template-columns: 1fr 1fr 1fr; 
+            gap: 4px; 
+            background: var(--border-color); 
+            padding: 4px;
+            overflow: hidden;
+        }
+        
+        .panel { display: flex; flex-direction: column; background: var(--panel-bg); overflow: hidden; position: relative; }
+        
+        .panel-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            background: var(--bg-color); 
+            padding: 6px 12px; 
+            font-size: 11px; 
+            font-weight: bold; 
+            text-transform: uppercase; 
+            border-bottom: 1px solid var(--border-color); 
+            height: 30px; 
+        }
+        
+        .panel[data-lang="html"] .panel-header { border-left: 4px solid var(--header-html); }
+        .panel[data-lang="css"] .panel-header { border-left: 4px solid var(--header-css); }
+        .panel[data-lang="js"] .panel-header { border-left: 4px solid var(--header-js); color: var(--text-color); }
+        .light-theme .panel[data-lang="js"] .panel-header { color: #b58900; }
+        
+        .editor-container { flex: 1; position: relative; overflow: hidden; display: flex; background: var(--editor-bg); }
+        .line-numbers { width: 42px; background: var(--gutter-bg); text-align: right; padding: 15px 8px 15px 0; font-family: 'Courier New', Courier, monospace; font-size: 13px; line-height: 19px; color: var(--gutter-text); border-right: 1px solid var(--border-color); user-select: none; overflow: hidden; }
+        .editor-relative { flex: 1; position: relative; height: 100%; overflow: hidden; }
+        
+        .code-textarea {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; margin: 0; padding: 15px;
+            font-family: 'Courier New', Courier, monospace; font-size: 13px; line-height: 19px; white-space: pre;
+            overflow: auto; border: none; border-radius: 0; box-sizing: border-box; background: var(--editor-bg);
+            color: var(--text-color); caret-color: var(--text-color); resize: none; outline: none;
+        }
+        
+        button, select { background: var(--bg-color); color: var(--text-color); border: 1px solid var(--border-color); padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        button:hover { background: var(--border-color); }
+        .btn-danger { background: var(--danger-color); color: white; border: none; }
+        .status-badge { font-size: 12px; color: var(--success-color); font-weight: bold; opacity: 0; transition: opacity 0.3s; }
+        
+        /* Modals Configuration UI */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: var(--panel-bg); border: 1px solid var(--border-color); padding: 25px; border-radius: 8px; max-width: 500px; width: 90%; }
+        .modal-close { float: right; cursor: pointer; font-size: 20px; }
+        
+        .download-options { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+        .download-btn { width: 100%; padding: 10px; text-align: left; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-color); border-radius: 4px; font-weight: bold; }
+        .download-btn:hover { background: var(--border-color); }
+
+        /* Asset Manager Styles */
+        .asset-list { margin-top: 15px; max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); background: var(--bg-color); border-radius: 4px; }
+        .asset-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; border-bottom: 1px solid var(--border-color); font-size: 12px; }
+        .asset-item:last-child { border-bottom: none; }
+        .asset-actions { display: flex; gap: 5px; }
+
+        #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+        .toast { background: var(--toast-bg); color: var(--text-color); border: 1px solid var(--border-color); padding: 12px 24px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); font-size: 13px; font-weight: 500; opacity: 0; transform: translateY(20px); transition: opacity 0.3s, transform 0.3s; pointer-events: auto; }
+        .toast.show { opacity: 1; transform: translateY(0); }
+    </style>
+</head>
+<body>
+
+    <div id="toast-container"></div>
+
+    <div class="app-container">
+        <header>
+            <div class="toolbar-group">
+                <strong>Code Viewer (Release)</strong>
+                <button id="btn-open">Open File</button>
+                <button id="btn-assets">Asset Manager</button>
+                <button id="btn-theme">Theme</button>
+            </div>
+            <div class="toolbar-group">
+                <span id="save-status" class="status-badge">Saved</span>
+                <button id="btn-tab" style="background: var(--accent-color); color: #fff; font-weight: bold;">Run In Pop-Out</button>
+                <button id="btn-fullscreen">Fullscreen</button>
+                <button id="btn-lock">Lock & Obfuscate</button>
+                <button id="btn-export">Download Bundle</button>
+                <button id="btn-clear" class="btn-danger">Reset</button>
+                <button id="btn-credits">Credits</button>
+            </div>
+        </header>
+
+        <div class="workspace-grid" id="workspace-root">
+            <div class="panel" data-lang="html">
+                <div class="panel-header">HTML (Structure)</div>
+                <div class="editor-container">
+                    <div class="line-numbers" id="html-line-box">1</div>
+                    <div class="editor-relative">
+                        <textarea class="code-textarea" id="html-input" spellcheck="false" autocomplete="off" placeholder="<!-- Write your HTML structure here -->"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel" data-lang="css">
+                <div class="panel-header">CSS (Styles)</div>
+                <div class="editor-container">
+                    <div class="line-numbers" id="css-line-box">1</div>
+                    <div class="editor-relative">
+                        <textarea class="code-textarea" id="css-input" spellcheck="false" autocomplete="off" placeholder="/* Write your CSS styling rules here */"></textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel" data-lang="js">
+                <div class="panel-header">JavaScript (Logic)</div>
+                <div class="editor-container">
+                    <div class="line-numbers" id="js-line-box">1</div>
+                    <div class="editor-relative">
+                        <textarea class="code-textarea" id="js-input" spellcheck="false" autocomplete="off" placeholder="// Write your JavaScript logic here"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="modal" id="disclaimer-modal">
+        <div class="modal-content" style="border: 1px solid var(--danger-color); box-shadow: 0 10px 30px rgba(169, 50, 38, 0.25);">
+            <span class="modal-close" id="close-disclaimer-modal">&times;</span>
+            <h3 style="color: var(--danger-color); margin-bottom:10px;">Experimental Feature Warning</h3>
+            <p style="font-size: 13px; line-height: 1.5; margin-bottom: 12px;">This application is primarily designed to write and compile code structures (HTML, CSS, and JavaScript) natively in memory.</p>
+            <p style="font-size: 13px; line-height: 1.5; margin-bottom: 15px; color: var(--gutter-text);">The asset manager, file packager, and image encoding tools are experimental additions. They could potentially break, fail to export binary chunks correctly, or drop references during high memory processes. Use these extended assets at your own risk.</p>
+            <button id="btn-disclaimer-ok" style="width: 100%; padding: 8px; font-weight: bold; background: var(--danger-color); color: #fff; border: none;">Acknowledge & Continue</button>
+        </div>
+    </div>
+
+    <div class="modal" id="assets-modal">
+        <div class="modal-content">
+            <span class="modal-close" id="close-assets-modal">&times;</span>
+            <h3 style="margin-bottom:5px;">Local Asset Inventory</h3>
+            <p style="font-size: 12px; color: var(--gutter-text); margin-bottom: 15px;">Upload local image files to save them directly inside your browser cache session as portable data snippets.</p>
+            
+            <input type="file" id="asset-file-input" accept="image/*" style="display: none;">
+            <button id="btn-upload-asset" style="width: 100%; padding: 8px; font-weight: bold; background: var(--accent-color); color: #fff;">Upload Image Asset</button>
+            
+            <div class="asset-list" id="asset-display-box">
+                <div style="padding: 15px; text-align: center; color: var(--gutter-text); font-size: 12px;">No local assets stored in session cache.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="export-modal">
+        <div class="modal-content">
+            <span class="modal-close" id="close-export-modal">&times;</span>
+            <h3 style="margin-bottom:5px;">Select Export Method</h3>
+            <p style="font-size: 12px; color: var(--gutter-text);">Choose how you want to download your code files:</p>
+            <div class="download-options">
+                <button class="download-btn" id="export-zip" style="border-color: var(--success-color); background: rgba(76, 175, 80, 0.05);">ZIP Production Package (makes your app, icons, and files into a standard website folder)</button>
+                <button class="download-btn" id="export-single">Single HTML File (combines your HTML, CSS, and JS into 1 single file)</button>
+                <button class="download-btn" id="export-html">Separate HTML File (downloads only your structure code)</button>
+                <button class="download-btn" id="export-css">Separate CSS File (downloads only your style rules)</button>
+                <button class="download-btn" id="export-js">Separate JS File (downloads only your logic script)</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="credits-modal">
+        <div class="modal-content">
+            <span class="modal-close" id="close-modal">&times;</span>
+            <h2 style="margin-bottom:15px;">Made by</h2>
+            <p>YNTM ;-)</p>
+        </div>
+    </div>
+
+    <script src="https://cloudflare.com"></script>
+    <script>
+        const editors = {
+            html: { input: document.getElementById('html-input'), lines: document.getElementById('html-line-box') },
+            css: { input: document.getElementById('css-input'), lines: document.getElementById('css-line-box') },
+            js: { input: document.getElementById('js-input'), lines: document.getElementById('js-line-box') }
+        };
+
+        const saveStatus = document.getElementById('save-status');
+        const STORAGE_KEY = 'modulated_studio_buffer';
+        const ASSETS_KEY = 'modulated_studio_assets_inventory';
+        const LAUNCH_KEY = 'modulated_studio_launch_count_metric';
+        
+        let debounceTimer;
+        let imageAssetsList = [];
+
+        const diagnosticTemplate = {
+            html: `<!-- Note: You are free to delete this code anytime; it is just for testing -->\n<div id="test-node">\n  <p id="html-check" style="color: green;">HTML: Working</p>\n  <p id="css-check" class="error-text">CSS: Not working</p>\n  <p id="js-check" class="error-text">JS: Not working</p>\n</div>`,
+            css: `/* Note: You are free to delete this code anytime; it is just for testing */\n.error-text {\n  color: red;\n}\n.css-success {\n  color: green;\n}`,
+            js: `// Note: You are free to delete this code anytime; it is just for testing\n(function() {\n  const cssTarget = document.getElementById('css-check');\n  const jsTarget = document.getElementById('js-check');\n\n  if (cssTarget) {\n    cssTarget.textContent = 'CSS: Working';\n    cssTarget.className = 'css-success';\n  }\n\n  if (jsTarget) {\n    jsTarget.textContent = 'JS: Working';\n    jsTarget.className = 'css-success';\n  }\n})();`
+        };
+
+        function showNotification(message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            container.appendChild(toast);
+
+            setTimeout(() => toast.classList.add('show'), 50);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function cacheWorkspaceData() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                html: editors.html.input.value,
+                css: editors.css.input.value,
+                js: editors.js.input.value
+            }));
+            saveStatus.style.opacity = '1';
+            setTimeout(() => { saveStatus.style.opacity = '0'; }, 1500);
+        }
+
+        function synchronizeEditorLines(lang) {
+            const editor = editors[lang];
+            const lines = editor.input.value.split('\n');
+            let lineString = '';
+            for(let i = 1; i <= lines.length; i++) { lineString += i + '<br>'; }
+            editor.lines.innerHTML = lineString;
+            editor.lines.scrollTop = editor.input.scrollTop;
+        }
+
+        Object.keys(editors).forEach(lang => {
+            const editor = editors[lang];
+            editor.input.addEventListener('input', () => {
+                synchronizeEditorLines(lang);
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(cacheWorkspaceData, 500);
+            });
+            editor.input.addEventListener('scroll', () => {
+                editor.lines.scrollTop = editor.input.scrollTop;
+            });
+        });
+
+        document.getElementById('btn-tab').addEventListener('click', () => {
+            const htmlCode = editors.html.input.value;
+            const cssCode = editors.css.input.value;
+            const jsCode = editors.js.input.value;
+            const integratedCode = `<!DOCTYPE html>\n<html>\n<head>\n<meta charset="utf-8">\n<style>${cssCode}</style>\n</head>\n<body>\n${htmlCode}\n<script>${jsCode}<\/script>\n</body>\n</html>`;
+            
+            const targetWindow = window.open();
+            if (targetWindow) {
+                targetWindow.document.open();
+                targetWindow.document.write(integratedCode);
+                targetWindow.document.close();
+                showNotification("Application runtime launched in new channel window.");
+            } else {
+                alert("Popup Blocker detected! Enable popups to allow external live rendering paths.");
+            }
+        });
+
+        document.getElementById('btn-open').addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.html,.txt,.js,.css';
+            input.onchange = (e) => {
+                const reader = new FileReader();
+                reader.onload = (re) => {
+                    editors.html.input.value = re.target.result;
+                    editors.css.input.value = '';
+                    editors.js.input.value = '';
+                    Object.keys(editors).forEach(synchronizeEditorLines);
+                    cacheWorkspaceData();
+                    showNotification("Source stream imported successfully.");
+                };
+                reader.readAsText(e.target.files);
+            };
+            input.click();
+        });
+
+        const assetsModal = document.getElementById('assets-modal');
+        const assetFileInput = document.getElementById('asset-file-input');
+        const assetDisplayBox = document.getElementById('asset-display-box');
+
+        document.getElementById('btn-assets').addEventListener('click', () => assetsModal.style.display = 'flex');
+        document.getElementById('close-assets-modal').addEventListener('click', () => assetsModal.style.display = 'none');
+        document.getElementById('btn-upload-asset').addEventListener('click', () => assetFileInput.click());
+
+        assetFileInput.addEventListener('change', (e) => {
+            const file = e.target.files;
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const assetObject = { name: file.name, data: event.target.result };
+                imageAssetsList.push(assetObject);
+                localStorage.setItem(ASSETS_KEY, JSON.stringify(imageAssetsList));
+                renderAssetInventory();
+                showNotification(`Image file compiled into text stream memory: ${file.name}`);
+            };
+            reader.readAsDataURL(file);
+            e.target.value = "";
+        });
+
+        function renderAssetInventory() {
+            if (imageAssetsList.length === 0) {
+                assetDisplayBox.innerHTML = `<div style="padding: 15px; text-align: center; color: var(--gutter-text); font-size: 12px;">No local assets stored in session cache.</div>`;
+                return;
+            }
+
+            assetDisplayBox.innerHTML = imageAssetsList.map((asset, index) => `
+                <div class="asset-item">
+                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px;" title="${asset.name}">${asset.name}</span>
+                    <div class="asset-actions">
+                        <button onclick="copyRelativeLink(${index})">Copy Path</button>
+                        <button onclick="copyAssetTag(${index})">Copy Tag</button>
+                        <button class="btn-danger" style="padding: 4px 8px;" onclick="deleteAssetItem(${index})">&times;</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.copyRelativeLink = function(index) {
+            const asset = imageAssetsList[index];
+            navigator.clipboard.writeText(`assets/${asset.name}`).then(() => {
+                showNotification("Relative local directory asset folder path copied.");
+            });
+        };
+
+        window.copyAssetTag = function(index) {
+            const asset = imageAssetsList[index];
+            const elementTag = `<img src="${asset.data}" alt="${asset.name}">`;
+            navigator.clipboard.writeText(elementTag).then(() => {
+                showNotification("Image inline HTML component tag copied to clipboard.");
+            });
+        };
+
+        window.deleteAssetItem = function(index) {
+            imageAssetsList.splice(index, 1);
+            localStorage.setItem(ASSETS_KEY, JSON.stringify(imageAssetsList));
+            renderAssetInventory();
+            showNotification("Image removed from session inventory partition.");
+        };
+
+        function downloadFileBlob(content, filename, contentType) {
+            const blob = new Blob([content], { type: contentType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+            showNotification(`Export file successfully downloaded: ${filename}`);
+        }
+
+        const exportModal = document.getElementById('export-modal');
+        document.getElementById('btn-export').addEventListener('click', () => exportModal.style.display = 'flex');
+        document.getElementById('close-export-modal').addEventListener('click', () => exportModal.style.display = 'none');
+
+        document.getElementById('export-zip').addEventListener('click', () => {
+            if (typeof JSZip === 'undefined') {
+                alert("ZIP compression engine link still mounting. Wait a brief second and retry.");
+                return;
+            }
+
+            const zip = new JSZip();
+            let structuredHtml = editors.html.input.value;
+            if (!structuredHtml.includes('<link rel="stylesheet"')) {
+                structuredHtml = `<!DOCTYPE html>\n<html>\n<head>\n  <meta charset="utf-8">\n  <title>Application Project Portfolio</title>\n  <link rel="stylesheet" href="style.css">\n</head>\n<body>\n${structuredHtml}\n  <script src="app.js"><\/script>\n</body>\n</html>`;
+            }
+
+            zip.file("index.html", structuredHtml);
+            zip.file("style.css", editors.css.input.value);
+            zip.file("app.js", editors.js.input.value);
+
+            if (imageAssetsList.length > 0) {
+                const assetsFolder = zip.folder("assets");
+                imageAssetsList.forEach(asset => {
+                    const rawBase64Data = asset.data.split(',')[1];
+                    assetsFolder.file(asset.name, rawBase64Data, { base64: true });
+                });
+            }
+
+            zip.generateAsync({ type: "blob" }).then((content) => {
+                const url = URL.createObjectURL(content);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'project-workspace-bundle.zip';
+                a.click();
+                URL.revokeObjectURL(url);
+                showNotification("Full production ZIP folder package successfully exported.");
+                exportModal.style.display = 'none';
+            });
+        });
+
+        document.getElementById('export-single').addEventListener('click', () => {
+            const code = `<!DOCTYPE html>\n<html>\n<head>\n<style>${editors.css.input.value}</style>\n</head>\n<body>\n${editors.html.input.value}\n<script>${editors.js.input.value}<\/script>\n</body>\n</html>`;
+            downloadFileBlob(code, 'production-bundle.html', 'text/html;charset=utf-8');
+            exportModal.style.display = 'none';
+        });
+        document.getElementById('export-html').addEventListener('click', () => {
+            downloadFileBlob(editors.html.input.value, 'index.html', 'text/html;charset=utf-8');
+            exportModal.style.display = 'none';
+        });
+        document.getElementById('export-css').addEventListener('click', () => {
+            downloadFileBlob(editors.css.input.value, 'style.css', 'text/css;charset=utf-8');
+            exportModal.style.display = 'none';
+        });
+        document.getElementById('export-js').addEventListener('click', () => {
+            downloadFileBlob(editors.js.input.value, 'app.js', 'text/javascript;charset=utf-8');
+            exportModal.style.display = 'none';
+        });
+
+        document.getElementById('btn-lock').addEventListener('click', () => {
+            const integratedCode = `<!DOCTYPE html>\n<html>\n<head>\n<style>${editors.css.input.value}</style>\n</head>\n<body>\n${editors.html.input.value}\n<script>${editors.js.input.value}<\/script>\n</body>\n</html>`;
+            const encoded = btoa(unescape(encodeURIComponent(integratedCode)));
+            editors.html.input.value = `<!DOCTYPE html>\n<html>\n<body>\n<script>\n\tdocument.open();\n\tdocument.write(decodeURIComponent(escape(atob("${encoded}"))));\n\tdocument.close();\n<\/script>\n</body>\n</html>`;
+            editors.css.input.value = '';
+            editors.js.input.value = '';
+            Object.keys(editors).forEach(synchronizeEditorLines);
+            cacheWorkspaceData();
+            showNotification("Obfuscation compiler encryption bundle locked.");
+        });
+
+        document.getElementById('btn-clear').addEventListener('click', () => {
+            if(confirm('Wipe current workspace sessions completely?')) {
+                localStorage.removeItem(STORAGE_KEY);
+                Object.keys(editors).forEach(l => editors[l].input.value = '');
+                Object.keys(editors).forEach(synchronizeEditorLines);
+                cacheWorkspaceData();
+                showNotification("Workspace cleared and session memory buffers reset.");
+            }
+        });
+
+        document.getElementById('btn-theme').addEventListener('click', () => {
+            document.body.classList.toggle('light-theme');
+            showNotification("Application workspace display color profile theme swapped.");
+        });
+
+        document.getElementById('btn-fullscreen').addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+                showNotification("Presentation full screen mode enabled.");
+            } else if (document.exitFullscreen) {
+                document.exitFullscreen();
+                showNotification("Presentation full screen mode disabled.");
+            }
+        });
+
+
+        const modal = document.getElementById('credits-modal');
+        const disclaimerModal = document.getElementById('disclaimer-modal');
+
+        document.getElementById('btn-credits').addEventListener('click', () => modal.style.display = 'flex');
+        document.getElementById('close-modal').addEventListener('click', () => modal.style.display = 'none');
+        
+        document.getElementById('close-disclaimer-modal').addEventListener('click', () => disclaimerModal.style.display = 'none');
+        document.getElementById('btn-disclaimer-ok').addEventListener('click', () => disclaimerModal.style.display = 'none');
+
+        window.addEventListener('click', (e) => { 
+            if(e.target === modal) modal.style.display = 'none'; 
+            if(e.target === exportModal) exportModal.style.display = 'none';
+            if(e.target === assetsModal) assetsModal.style.display = 'none';
+            if(e.target === disclaimerModal) disclaimerModal.style.display = 'none';
+        });
+
+      
+        function processLaunchDisclaimerCheck() {
+            let launches = parseInt(localStorage.getItem(LAUNCH_KEY)) || 0;
+            launches++;
+            localStorage.setItem(LAUNCH_KEY, launches);
+            
+            if (launches % 5 === 0) {
+                setTimeout(() => { disclaimerModal.style.display = 'flex'; }, 400);
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const cache = localStorage.getItem(STORAGE_KEY);
+            if(cache) {
+                const parsed = JSON.parse(cache);
+                editors.html.input.value = parsed.html || '';
+                editors.css.input.value = parsed.css || '';
+                editors.js.input.value = parsed.js || '';
+            } else {
+                editors.html.input.value = diagnosticTemplate.html;
+                editors.css.input.value = diagnosticTemplate.css;
+                editors.js.input.value = diagnosticTemplate.js;
+            }
+
+            const cachedAssets = localStorage.getItem(ASSETS_KEY);
+            if (cachedAssets) {
+                imageAssetsList = JSON.parse(cachedAssets);
+            }
+            renderAssetInventory();
+            Object.keys(editors).forEach(synchronizeEditorLines);
+            
+            processLaunchDisclaimerCheck();
+        });
+    </script>
+</body>
+</html>
